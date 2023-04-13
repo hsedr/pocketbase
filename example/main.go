@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"time"
 
@@ -14,17 +15,43 @@ type Post struct {
 	ID    string `json:"id"`
 }
 
+type Model struct {
+	ID             string `json:"id"`
+	CollectionID   string `json:"collectionId"`
+	CollectionName string `json:"collectionName"`
+	Created        string `json:"created"`
+	Updated        string `json:"updated"`
+	Username       string `json:"username"`
+	Email          string `json:"email"`
+	Verified       bool   `json:"verified"`
+	EmailVisibilty bool   `json:"emailVisibility"`
+}
+
 func main() {
 	// REMEMBER to start the Pocketbase before running this example with `make serve` command
 
 	var errs error
-	client := pocketbase.NewClient("http://localhost:8090")
+	client := pocketbase.NewClient("http://localhost:8090",
+		pocketbase.WithUserEmailPassword("user@user.com", "user@user.com"),
+	)
 	// Other configuration options:
 	// pocketbase.WithAdminEmailPassword("admin@admin.com", "admin@admin.com")
 	// pocketbase.WithUserEmailPassword("user@user.com", "user@user.com")
 	// pocketbase.WithUserToken(token)
 	// pocketbase.WithAdminToken(token)
 	// pocketbase.WithDebug()
+
+	err := client.Authorize()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	record := Model{}
+	err = client.AuthStore().Model(&record)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Model:", record)
 
 	response, err := client.List("posts_public", pocketbase.ParamsList{
 		Size:    1,

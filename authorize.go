@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/hsedr/pocketbase/internal"
 	"github.com/mitchellh/mapstructure"
-	"github.com/r--w/pocketbase/internal"
 	"golang.org/x/sync/singleflight"
 )
 

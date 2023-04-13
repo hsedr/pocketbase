@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
+	"github.com/hsedr/pocketbase"
 	"github.com/mitchellh/mapstructure"
-	"github.com/r--w/pocketbase"
 )
 
 type Post struct {
@@ -46,12 +46,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	record := Model{}
-	err = client.AuthStore().Model(&record)
+	model := Model{}
+	err = client.AuthStore().Model(&model)
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Model:", record)
+	fmt.Println("Model:", model)
 
 	response, err := client.List("posts_public", pocketbase.ParamsList{
 		Size:    1,

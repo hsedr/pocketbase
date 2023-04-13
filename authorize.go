@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/mitchellh/mapstructure"
+	"github.com/r--w/pocketbase/internal"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -12,6 +14,7 @@ type authStore interface {
 	authorizer
 	IsValid() bool
 	Token() string
+	Model(interface{}) error
 }
 
 type authorizer interface {
@@ -32,10 +35,15 @@ func (a authorizeNoOp) Token() string {
 	return ""
 }
 
+func (a authorizeNoOp) Model(o interface{}) error {
+	return nil
+}
+
 type authorizeEmailPassword struct {
 	email       string
 	password    string
 	token       string
+	model       map[string]interface{}
 	tokenValid  time.Time
 	client      *resty.Client
 	url         string
@@ -54,7 +62,9 @@ func newAuthorizeEmailPassword(c *resty.Client, url string, email string, passwo
 
 func (a *authorizeEmailPassword) authorize() error {
 	type authResponse struct {
-		Token string `json:"token"`
+		Token  string                 `json:"token"`
+		Record map[string]interface{} `json:"record"`
+		Admin  map[string]interface{} `json:"admin"`
 	}
 
 	_, err, _ := a.tokenSingle.Do("auth", func() (interface{}, error) {
@@ -83,9 +93,9 @@ func (a *authorizeEmailPassword) authorize() error {
 				ErrInvalidResponse,
 			)
 		}
-
 		auth := *resp.Result().(*authResponse)
 		a.token = auth.Token
+		a.model = internal.First(len(auth.Admin) > 0, auth.Admin, auth.Record)
 		a.client.SetHeader("Authorization", auth.Token)
 		a.tokenValid = time.Now().Add(60 * time.Minute)
 
@@ -100,4 +110,8 @@ func (a *authorizeEmailPassword) IsValid() bool {
 
 func (a *authorizeEmailPassword) Token() string {
 	return a.token
+}
+
+func (a *authorizeEmailPassword) Model(o interface{}) error {
+	return mapstructure.Decode(a.model, o)
 }

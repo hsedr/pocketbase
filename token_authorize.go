@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/mitchellh/mapstructure"
+	"github.com/r--w/pocketbase/internal"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -12,6 +14,7 @@ type authorizeToken struct {
 	client      *resty.Client
 	url         string
 	token       string
+	model       map[string]interface{}
 	tokenValid  time.Time
 	tokenSingle singleflight.Group
 }
@@ -28,7 +31,9 @@ func newAuthorizeToken(c *resty.Client, url string, token string) authStore {
 
 func (a *authorizeToken) authorize() error {
 	type authResponse struct {
-		Token string `json:"token"`
+		Token  string                 `json:"token"`
+		Record map[string]interface{} `json:"record"`
+		Admin  map[string]interface{} `json:"admin"`
 	}
 	_, err, _ := a.tokenSingle.Do("auth-refresh", func() (interface{}, error) {
 		if time.Now().Before(a.tokenValid) {
@@ -51,6 +56,7 @@ func (a *authorizeToken) authorize() error {
 		}
 		auth := *resp.Result().(*authResponse)
 		a.token = auth.Token
+		a.model = internal.First(len(auth.Admin) > 0, auth.Admin, auth.Record)
 		a.client.SetHeader("Authorization", auth.Token)
 		a.tokenValid = time.Now().Add(60 * time.Minute)
 		return nil, nil
@@ -64,4 +70,8 @@ func (a *authorizeToken) IsValid() bool {
 
 func (a *authorizeToken) Token() string {
 	return a.token
+}
+
+func (a *authorizeToken) Model(o interface{}) error {
+	return mapstructure.Decode(a.model, o)
 }
